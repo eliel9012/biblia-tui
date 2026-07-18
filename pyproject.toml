@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "biblia-tui"
+version = "0.1.0"
+description = "Bíblia ACF em tela cheia no terminal"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [{name = "Bíblia TUI contributors"}]
+keywords = ["biblia", "bible", "tui", "terminal", "acf"]
+classifiers = [
+  "Environment :: Console :: Curses",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
+[project.scripts]
+biblia = "biblia_tui.__main__:main"
+
+[tool.setuptools]
+packages = ["biblia_tui"]

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 "__APP_DIR__/biblia.py" "$@"
