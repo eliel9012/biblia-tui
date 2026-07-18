@@ -13,7 +13,7 @@ from .tui import run_tui
 
 
 def parser() -> argparse.ArgumentParser:
-    command = argparse.ArgumentParser(prog="biblia", description="Bíblia ACF em tela cheia no terminal")
+    command = argparse.ArgumentParser(prog="biblia", description="A Bíblia em tela cheia no terminal")
     command.add_argument("reference", nargs="?", help='referência inicial, por exemplo "João 3:16"')
     command.add_argument("--data", type=Path, help="caminho alternativo para acf.json")
     command.add_argument("--export", dest="export_reference", help="exportar referência para Markdown sem abrir a TUI")
@@ -36,7 +36,7 @@ def main(argv: list[str] | None = None) -> int:
         if not sys.stdin.isatty() or not sys.stdout.isatty():
             print("biblia: interface requer terminal interativo", file=sys.stderr)
             return 2
-        run_tui(bible, initial, theme)
+        run_tui(bible, initial, theme, start_in_library=args.reference is None)
         return 0
     except (FileNotFoundError, ValueError, OSError) as error:
         print(f"biblia: {error}", file=sys.stderr)

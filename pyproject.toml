@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "biblia-tui"
-version = "0.1.0"
-description = "Bíblia ACF em tela cheia no terminal"
+version = "0.2.0"
+description = "A Bíblia em tela cheia no terminal"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}
