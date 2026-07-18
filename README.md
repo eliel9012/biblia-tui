@@ -1,11 +1,11 @@
 # Bíblia TUI — A Bíblia no seu terminal
 
-Leitor da Bíblia ACF rápido, focado e totalmente offline para o terminal.
+Leitor da Bíblia rápido, focado e totalmente offline para o terminal.
 
-O **Bíblia TUI** abre uma interface de tela cheia controlada pelo teclado. Navegue pelos 66 livros, abra referências como `João 3:16`, pesquise em toda a Bíblia, mantenha um histórico e exporte trechos em Markdown.
+O **Bíblia TUI** abre uma interface de tela cheia controlada pelo teclado. Escolha visualmente livro, capítulo e versículo; abra referências como `João 3:16`; pesquise em toda a Bíblia; mantenha histórico e exporte trechos em Markdown.
 
 ```text
-┌ Bíblia ACF ───────────────────────── João 3 ───────────────┐
+┌ Bíblia ───────────────────────────── João 3 ───────────────┐
 │                                                            │
 │  15  Para que todo aquele que nele crê não pereça...       │
 │                                                            │
@@ -20,10 +20,13 @@ O **Bíblia TUI** abre uma interface de tela cheia controlada pelo teclado. Nave
 
 ## Recursos
 
+- Biblioteca visual em três níveis: livros → capítulos → versículos.
+- Lista dos 66 livros exibida ao iniciar o aplicativo.
 - Leitura em tela cheia com quebra de linha adaptável.
 - Navegação por livro, capítulo e versículo.
 - Abertura por nome, abreviação ou referência completa.
 - Pesquisa sem diferenciar maiúsculas, minúsculas ou acentos.
+- Busca inteligente: nomes de livros e referências abrem diretamente a navegação correta.
 - Histórico das 100 referências abertas mais recentes.
 - Restauração automática da última posição.
 - Temas escuro, claro e monocromático.
@@ -76,6 +79,22 @@ biblia "1 Coríntios 13"
 biblia "Salmos 23"
 ```
 
+Ao executar somente `biblia`, a Biblioteca aparece primeiro:
+
+```text
+Biblioteca → Livro → Capítulo → Versículo → Leitura
+```
+
+Na busca (`/`), nomes e referências são reconhecidos antes da pesquisa textual:
+
+```text
+apocalipse       → abre os capítulos de Apocalipse
+apocalipse 1     → abre Apocalipse 1
+apocalipse 1:7   → abre o versículo 7
+genesis          → abre Gênesis, mesmo sem acento
+1 joao 2         → abre 1 João 2
+```
+
 Usar outro arquivo de dados:
 
 ```bash
@@ -97,8 +116,10 @@ biblia --version
 | `←` / `→` ou `h` / `l` | Capítulo anterior ou seguinte |
 | `Home` / `End` | Primeiro ou último versículo |
 | `g` | Abrir uma referência |
-| `b` | Escolher livro e capítulo |
-| `/` | Pesquisar palavra ou frase |
+| `b` | Abrir Biblioteca de livros |
+| `c` | Listar capítulos do livro atual |
+| `Enter` | Listar versículos do capítulo atual |
+| `/` | Abrir livro/referência ou pesquisar texto |
 | `n` / `N` | Próximo ou anterior resultado |
 | `H` | Abrir histórico de referências |
 | `e` | Exportar trecho em Markdown |

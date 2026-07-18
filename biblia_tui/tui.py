@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import curses
 import textwrap
-from typing import Callable
 
 from .clipboard import copy_text
 from .data import Bible
 from .exporter import export_markdown
 from .models import Reference, SearchResult
-from .references import parse_reference
+from .references import parse_reference, resolve_reference
 from .storage import add_history, load_history, save_state
 from .themes import THEME_LABELS, apply_theme, next_theme
 
@@ -18,8 +17,10 @@ HELP = [
     ("PgUp/PgDn", "mover uma página"),
     ("←/→ ou h/l", "capítulo anterior/seguinte"),
     ("g", "abrir referência"),
-    ("b", "escolher livro e capítulo"),
-    ("/", "pesquisar palavra ou frase"),
+    ("b", "abrir biblioteca: livros, capítulos e versículos"),
+    ("c", "listar capítulos do livro atual"),
+    ("Enter", "listar versículos do capítulo atual"),
+    ("/", "abrir livro/referência ou pesquisar texto"),
     ("n / N", "próximo/anterior resultado"),
     ("H", "histórico de referências"),
     ("e", "exportar trecho em Markdown"),
@@ -46,7 +47,7 @@ def safe_addstr(window, y: int, x: int, text: str, attr: int = 0, width: int | N
 
 
 class App:
-    def __init__(self, screen, bible: Bible, initial: Reference, theme: str):
+    def __init__(self, screen, bible: Bible, initial: Reference, theme: str, start_in_library: bool = True):
         self.screen = screen
         self.bible = bible
         self.ref = bible.clamp(Reference(initial.book, initial.chapter, initial.verse or 0))
@@ -56,6 +57,7 @@ class App:
         self.last_results: list[SearchResult] = []
         self.result_index = -1
         self.running = True
+        self.start_in_library = start_in_library
 
     def setup(self) -> None:
         curses.curs_set(0)
@@ -66,6 +68,8 @@ class App:
 
     def run(self) -> None:
         self.setup()
+        if self.start_in_library:
+            self.browse_bible(self.ref.book)
         while self.running:
             self.draw()
             self.handle_key(self.screen.getch())
@@ -86,8 +90,8 @@ class App:
         self.screen.refresh()
 
     def _draw_header(self, width: int) -> None:
-        title = " Bíblia ACF "
-        location = f" {self.bible.book_name(self.ref.book)} {self.ref.chapter + 1} "
+        title = " Bíblia "
+        location = f" {self.bible.book_name(self.ref.book)} › Capítulo {self.ref.chapter + 1} "
         safe_addstr(self.screen, 0, 0, " " * width, self.colors["header"])
         safe_addstr(self.screen, 0, 1, title, self.colors["header"])
         safe_addstr(self.screen, 0, max(1, width - len(location) - 1), location, self.colors["header"])
@@ -117,7 +121,7 @@ class App:
             safe_addstr(self.screen, row, 6, text, attr)
 
     def _draw_status(self, height: int, width: int) -> None:
-        text = self.message or "←/→ capítulo  g referência  / busca  H histórico  ? ajuda  q sair"
+        text = self.message or "b biblioteca  c capítulos  Enter versículos  / buscar  ? ajuda  q sair"
         safe_addstr(self.screen, height - 1, 0, " " * width, self.colors["status"])
         safe_addstr(self.screen, height - 1, 1, text, self.colors["status"], width - 2)
         self.message = ""
@@ -144,7 +148,11 @@ class App:
         elif key == ord("g"):
             self.goto_prompt()
         elif key == ord("b"):
-            self.choose_book()
+            self.browse_bible(self.ref.book)
+        elif key == ord("c"):
+            self.choose_chapter(self.ref.book, self.ref.chapter)
+        elif key in (10, 13, curses.KEY_ENTER):
+            self.choose_verse(self.ref.book, self.ref.chapter, self.ref.verse or 0)
         elif key == ord("/"):
             self.search_prompt()
         elif key == ord("n"):
@@ -198,31 +206,71 @@ class App:
         if not value:
             return
         try:
-            self.open_reference(parse_reference(value, self.bible))
+            resolved = resolve_reference(value, self.bible)
+            if resolved.level == "book":
+                self.choose_chapter(resolved.reference.book)
+            else:
+                self.open_reference(resolved.reference)
         except ValueError as error:
             self.message = str(error)
 
-    def choose_book(self) -> None:
-        items = [book["name"] for book in self.bible.books]
-        chosen = self.select_list("Escolha o livro", items, self.ref.book)
-        if chosen is None:
-            return
-        value = self.prompt(f"{items[chosen]} — capítulo: ", "1")
-        if value is None:
-            return
-        try:
-            chapter = int(value) - 1
-            if not 0 <= chapter < self.bible.chapter_count(chosen):
-                raise ValueError
-            self.open_reference(Reference(chosen, chapter, 0))
-        except ValueError:
-            self.message = "Capítulo inválido"
+    def browse_bible(self, selected_book: int = 0) -> None:
+        while True:
+            labels = []
+            for index, book in enumerate(self.bible.books):
+                testament = "AT" if index < 39 else "NT"
+                count = len(book["chapters"])
+                labels.append(f"{testament}  {index + 1:>2}. {book['name']:<20} {count:>3} cap.")
+            book = self.select_list("Biblioteca • escolha um livro", labels, selected_book)
+            if book is None:
+                return
+            selected_book = book
+            if self.choose_chapter(book):
+                return
+
+    def choose_chapter(self, book: int, selected_chapter: int = 0) -> bool:
+        while True:
+            labels = [
+                f"Capítulo {chapter + 1:>3}  •  {len(verses):>3} versículos"
+                for chapter, verses in enumerate(self.bible.books[book]["chapters"])
+            ]
+            chapter = self.select_list(
+                f"{self.bible.book_name(book)} • escolha um capítulo",
+                labels,
+                selected_chapter,
+            )
+            if chapter is None:
+                return False
+            selected_chapter = chapter
+            if self.choose_verse(book, chapter):
+                return True
+
+    def choose_verse(self, book: int, chapter: int, selected_verse: int = 0) -> bool:
+        labels = [f"{number:>3}  {text}" for number, text in enumerate(self.bible.verses(book, chapter), start=1)]
+        verse = self.select_list(
+            f"{self.bible.book_name(book)} {chapter + 1} • escolha um versículo",
+            labels,
+            selected_verse,
+        )
+        if verse is None:
+            return False
+        self.open_reference(Reference(book, chapter, verse))
+        return True
 
     def search_prompt(self) -> None:
         query = self.prompt("Buscar: ")
         if not query:
             return
-        self.message = "Buscando…"
+        try:
+            resolved = resolve_reference(query, self.bible)
+            if resolved.level == "book":
+                self.choose_chapter(resolved.reference.book)
+            else:
+                self.open_reference(resolved.reference)
+            return
+        except ValueError:
+            pass
+        self.message = "Buscando no texto…"
         self.draw()
         results = self.bible.search(query)
         if not results:
@@ -316,5 +364,5 @@ class App:
                 return selected
 
 
-def run_tui(bible: Bible, initial: Reference, theme: str) -> None:
-    curses.wrapper(lambda screen: App(screen, bible, initial, theme).run())
+def run_tui(bible: Bible, initial: Reference, theme: str, start_in_library: bool = True) -> None:
+    curses.wrapper(lambda screen: App(screen, bible, initial, theme, start_in_library).run())

@@ -1,20 +1,28 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
+from typing import Literal
 
 from .data import Bible, normalize
 from .models import Reference
 
 
 REFERENCE_RE = re.compile(
-    r"^\s*(?P<book>.+?)\s+(?P<chapter>\d+)(?:\s*:\s*(?P<verse>\d+)(?:\s*-\s*(?P<end>\d+))?)?\s*$"
+    r"^\s*(?P<book>.+?)(?:\s+(?P<chapter>\d+)(?:\s*:\s*(?P<verse>\d+)(?:\s*-\s*(?P<end>\d+))?)?)?\s*$"
 )
 
 
-def parse_reference(value: str, bible: Bible) -> Reference:
+@dataclass(frozen=True)
+class ResolvedReference:
+    reference: Reference
+    level: Literal["book", "chapter", "verse"]
+
+
+def resolve_reference(value: str, bible: Bible) -> ResolvedReference:
     match = REFERENCE_RE.match(value)
     if not match:
-        raise ValueError("Use formato como João 3:16 ou 1 Coríntios 13")
+        raise ValueError("Use livro, capítulo ou versículo; exemplo: João, João 3 ou João 3:16")
     book_key = normalize(match.group("book")).replace(".", "").strip()
     book_key_compact = book_key.replace(" ", "")
     book = bible.aliases.get(book_key, bible.aliases.get(book_key_compact))
@@ -24,6 +32,8 @@ def parse_reference(value: str, bible: Bible) -> Reference:
             book = matches.pop()
         else:
             raise ValueError(f"Livro não encontrado: {match.group('book')}")
+    if match.group("chapter") is None:
+        return ResolvedReference(Reference(book, 0), "book")
     chapter = int(match.group("chapter")) - 1
     if not 0 <= chapter < bible.chapter_count(book):
         raise ValueError(f"Capítulo inválido para {bible.book_name(book)}")
@@ -34,4 +44,9 @@ def parse_reference(value: str, bible: Bible) -> Reference:
         raise ValueError("Versículo inicial inválido")
     if end is not None and (verse is None or end < verse or end >= verse_count):
         raise ValueError("Fim do trecho inválido")
-    return Reference(book, chapter, verse, end)
+    level: Literal["chapter", "verse"] = "verse" if verse is not None else "chapter"
+    return ResolvedReference(Reference(book, chapter, verse, end), level)
+
+
+def parse_reference(value: str, bible: Bible) -> Reference:
+    return resolve_reference(value, bible).reference
