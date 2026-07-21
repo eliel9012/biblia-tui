@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import curses
+import os
 import textwrap
+import unicodedata
 from typing import Callable
 
 from .clipboard import copy_text
@@ -30,7 +32,29 @@ HELP = [
 ]
 
 
+_ASCII_MAP = {
+    "•": "*", "‣": ">", "‹": "<", "›": ">",
+    "↑": "^", "↓": "v", "←": "<", "→": ">",
+    "…": "...", "—": "-", "–": "-", "―": "-",
+    "×": "x", "‘": "'", "’": "'", "“": '"', "”": '"',
+    " ": " ",
+}
+
+
+# Modo ASCII opt-in (ex.: BBS/terminais CP437 retro). Padrao mantem acentos.
+_ASCII_MODE = os.environ.get("BIBLIA_ASCII") == "1"
+
+
+def to_ascii(text: str) -> str:
+    """Translitera para ASCII puro (CP437-safe, sem acentos)."""
+    text = "".join(_ASCII_MAP.get(ch, ch) for ch in text)
+    text = unicodedata.normalize("NFKD", text)
+    return text.encode("ascii", "ignore").decode("ascii")
+
+
 def safe_addstr(window, y: int, x: int, text: str, attr: int = 0, width: int | None = None) -> None:
+    if _ASCII_MODE:
+        text = to_ascii(text)
     height, max_width = window.getmaxyx()
     if y < 0 or y >= height or x < 0 or x >= max_width:
         return

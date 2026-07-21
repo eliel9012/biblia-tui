@@ -142,6 +142,19 @@ A tecla `y` tenta, nesta ordem, `wl-copy`, `xclip`, `xsel`, `pbcopy` e `termux-c
 
 O texto copiado inclui versículo, referência e tradução.
 
+## Modo ASCII (terminais antigos / BBS)
+
+Por padrão a interface usa acentos e símbolos Unicode. Para terminais que só
+entendem ASCII/CP437 (BBS, clientes retro), defina:
+
+```bash
+BIBLIA_ASCII=1 python3 -m biblia_tui
+```
+
+Nesse modo todo o texto — nomes de livros, versículos e a própria interface — é
+transliterado para ASCII puro (sem acentos, símbolos como `•`/`→`/`…` viram
+`*`/`>`/`...`), evitando *mojibake* em terminais sem UTF-8.
+
 ## Estado e histórico
 
 O aplicativo grava somente preferências locais:
