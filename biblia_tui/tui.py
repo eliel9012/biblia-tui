@@ -69,6 +69,13 @@ def safe_addstr(window, y: int, x: int, text: str, attr: int = 0, width: int | N
         pass
 
 
+def _curs_set(visibility: int) -> None:
+    try:
+        curses.curs_set(visibility)
+    except curses.error:
+        pass  # terminfo minimo (ex.: 'ansi') sem controle de visibilidade de cursor
+
+
 class App:
     def __init__(self, screen, bible: Bible, initial: Reference, theme: str):
         self.screen = screen
@@ -82,7 +89,7 @@ class App:
         self.running = True
 
     def setup(self) -> None:
-        curses.curs_set(0)
+        _curs_set(0)
         self.screen.keypad(True)
         self.screen.timeout(-1)
         self.colors = apply_theme(self.theme)
@@ -200,7 +207,7 @@ class App:
 
     def prompt(self, label: str, initial: str = "") -> str | None:
         height, width = self.screen.getmaxyx()
-        curses.curs_set(1)
+        _curs_set(1)
         curses.echo()
         self.screen.timeout(-1)
         safe_addstr(self.screen, height - 1, 0, " " * width, self.colors["status"])
@@ -215,7 +222,7 @@ class App:
             return None
         finally:
             curses.noecho()
-            curses.curs_set(0)
+            _curs_set(0)
 
     def goto_prompt(self) -> None:
         value = self.prompt("Ir para: ", self.bible.label(self.ref))
