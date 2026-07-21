@@ -87,6 +87,8 @@ class App:
         self.last_results: list[SearchResult] = []
         self.result_index = -1
         self.running = True
+        self._read_start = 0
+        self._read_ref: tuple[int, int] | None = None
 
     def setup(self) -> None:
         _curs_set(0)
@@ -137,9 +139,17 @@ class App:
         selected = self.ref.verse or 0
         selected_line = next((i for i, item in enumerate(lines) if item[0] == selected), 0)
         available = height - 2
-        start = max(0, selected_line - available // 3)
-        if start + available > len(lines):
-            start = max(0, len(lines) - available)
+        chapter_key = (self.ref.book, self.ref.chapter)
+        if chapter_key != self._read_ref:
+            self._read_start = max(0, selected_line - available // 3)
+            self._read_ref = chapter_key
+        start = self._read_start
+        if selected_line < start:
+            start = selected_line
+        elif selected_line >= start + available:
+            start = selected_line - available + 1
+        start = max(0, min(start, max(0, len(lines) - available)))
+        self._read_start = start
         for row, (verse, text, first) in enumerate(lines[start : start + available], start=1):
             attr = self.colors["selected"] if verse == selected else self.colors["normal"]
             prefix = f"{verse + 1:>3}  " if first else "     "
@@ -317,13 +327,19 @@ class App:
         if not items:
             return None
         selected = min(max(selected, 0), len(items) - 1)
+        height, width = self.screen.getmaxyx()
+        available = max(1, height - 2)
+        start = min(max(0, selected - available // 2), max(0, len(items) - available))
         while True:
-            self.screen.erase()
             height, width = self.screen.getmaxyx()
+            available = max(1, height - 2)
+            if selected < start:
+                start = selected
+            elif selected >= start + available:
+                start = selected - available + 1
+            start = max(0, min(start, max(0, len(items) - available)))
             safe_addstr(self.screen, 0, 0, " " * width, self.colors["header"])
             safe_addstr(self.screen, 0, 1, f" {title} ", self.colors["header"])
-            available = max(1, height - 2)
-            start = min(max(0, selected - available // 2), max(0, len(items) - available))
             for row, (index, item) in enumerate(enumerate(items[start : start + available], start=start), start=1):
                 attr = self.colors["selected"] if index == selected else self.colors["normal"]
                 safe_addstr(self.screen, row, 0, " " * width, attr)
